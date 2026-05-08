@@ -9,7 +9,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial workspace scaffold: `loi-core`, `loi-syscalls`, `loi-memory`, `loi-output`, `loi-filter` crates plus `loi` binary and `xtask` automation.
-- CLI skeleton with `clap` derive: `--output`, `--syscall`, `--fail`, `--follow-forks`.
-- Toolchain pin (1.95), `rustfmt.toml`, `clippy.toml`.
-- E2E tests for `--help`, `--version`, missing-command failure.
+- Scaffold workspace and cli skeleton
+

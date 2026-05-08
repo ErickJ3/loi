@@ -30,6 +30,10 @@ enum Cmd {
     Dist,
     /// Update insta snapshots (requires cargo-insta)
     Snapshots,
+    /// Regenerate CHANGELOG.md from git history (requires git-cliff)
+    Changelog,
+    /// Preview unreleased changelog section to stdout (requires git-cliff)
+    ChangelogUnreleased,
 }
 
 fn main() -> Result<()> {
@@ -91,6 +95,16 @@ fn main() -> Result<()> {
             cmd!(sh, "cargo insta test --review")
                 .run()
                 .context("snapshots failed; install with: cargo install cargo-insta")?;
+        }
+        Cmd::Changelog => {
+            cmd!(sh, "git cliff -o CHANGELOG.md")
+                .run()
+                .context("git-cliff failed; install with: cargo install git-cliff")?;
+        }
+        Cmd::ChangelogUnreleased => {
+            cmd!(sh, "git cliff --unreleased")
+                .run()
+                .context("git-cliff failed; install with: cargo install git-cliff")?;
         }
     }
     Ok(())

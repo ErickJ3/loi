@@ -30,6 +30,16 @@ cargo lint        # clippy only
 cargo xtask test  # tests only
 ```
 
+## Changelog
+
+`CHANGELOG.md` is generated from git history by [git-cliff](https://git-cliff.org/) using `cliff.toml`.
+
+```bash
+cargo install git-cliff               # one-time
+cargo xtask changelog-unreleased      # preview unreleased section
+cargo xtask changelog                 # rewrite CHANGELOG.md
+```
+
 ## License
 
 Licensed under either of:
