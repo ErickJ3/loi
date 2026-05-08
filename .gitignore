@@ -1,1 +1,8 @@
 /target
+**/*.rs.bk
+*.profraw
+*.profdata
+.idea/
+.DS_Store
+/coverage
+*.log

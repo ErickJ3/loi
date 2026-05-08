@@ -1,0 +1,29 @@
+[package]
+name = "loi-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+description = "Core ptrace-based tracer engine for loi"
+
+[dependencies]
+loi-syscalls.workspace = true
+loi-memory.workspace = true
+nix.workspace = true
+libc.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde = { workspace = true, optional = true }
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
+
+[dev-dependencies]
+serde_json = { workspace = true }
+insta = { workspace = true }
+
+[lints]
+workspace = true

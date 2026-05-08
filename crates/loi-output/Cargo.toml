@@ -1,0 +1,19 @@
+[package]
+name = "loi-output"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+description = "Output formatters (pretty, json, raw) for loi"
+
+[dependencies]
+loi-core.workspace = true
+loi-syscalls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+owo-colors.workspace = true
+
+[lints]
+workspace = true

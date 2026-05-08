@@ -1,6 +1,127 @@
-[package]
-name = "loi"
+[workspace]
+resolver = "2"
+members = [
+    "crates/loi-core",
+    "crates/loi-syscalls",
+    "crates/loi-memory",
+    "crates/loi-output",
+    "crates/loi-filter",
+    "xtask",
+]
+default-members = [
+    ".",
+    "crates/loi-core",
+    "crates/loi-syscalls",
+    "crates/loi-memory",
+    "crates/loi-output",
+    "crates/loi-filter",
+]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.95"
+authors = ["Erick Jesus <erick.jesus2060@gmail.com>"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+keywords = ["strace", "tracing", "syscall", "debugging", "linux"]
+categories = ["command-line-utilities", "development-tools::debugging"]
+
+[workspace.dependencies]
+loi-core = { path = "crates/loi-core", version = "0.1.0" }
+loi-syscalls = { path = "crates/loi-syscalls", version = "0.1.0" }
+loi-memory = { path = "crates/loi-memory", version = "0.1.0" }
+loi-output = { path = "crates/loi-output", version = "0.1.0" }
+loi-filter = { path = "crates/loi-filter", version = "0.1.0" }
+
+nix = { version = "0.31", features = ["ptrace", "process", "signal", "uio"] }
+libc = "0.2"
+syscalls = "0.8"
+clap = { version = "4.6", features = ["derive", "env"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+owo-colors = "4"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+insta = { version = "1.47", features = ["json", "yaml"] }
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[package]
+name = "loi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "A modern, structured syscall tracer for Linux"
+
+[[bin]]
+name = "loi"
+path = "src/main.rs"
 
 [dependencies]
+loi-core.workspace = true
+loi-syscalls.workspace = true
+loi-output.workspace = true
+loi-filter.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+assert_cmd.workspace = true
+predicates.workspace = true
+insta.workspace = true
+tempfile.workspace = true
+criterion.workspace = true
+serde_json.workspace = true
+
+[[bench]]
+name = "event_serde"
+harness = false
+path = "benches/event_serde.rs"
+
+[lints]
+workspace = true
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.bench]
+lto = "thin"
+debug = true
+
+[workspace.lints.rust]
+future_incompatible = { level = "warn", priority = -2 }
+nonstandard_style = { level = "deny", priority = -2 }
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+redundant_clone = "deny"
+needless_collect = "deny"
+clone_on_copy = "deny"
+large_enum_variant = "warn"
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"

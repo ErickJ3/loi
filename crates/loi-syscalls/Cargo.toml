@@ -1,0 +1,20 @@
+[package]
+name = "loi-syscalls"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+description = "Syscall registry and per-syscall decoders for loi"
+
+[dependencies]
+syscalls.workspace = true
+serde = { workspace = true, optional = true }
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
+
+[lints]
+workspace = true

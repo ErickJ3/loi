@@ -1,0 +1,16 @@
+[package]
+name = "loi-memory"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+readme.workspace = true
+description = "Tracee memory readers (process_vm_readv, ptrace PEEKDATA) for loi"
+
+[dependencies]
+nix.workspace = true
+libc.workspace = true
+
+[lints]
+workspace = true
