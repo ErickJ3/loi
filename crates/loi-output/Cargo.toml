@@ -14,6 +14,10 @@ loi-syscalls.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 owo-colors.workspace = true
+nix.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
 
 [lints]
 workspace = true

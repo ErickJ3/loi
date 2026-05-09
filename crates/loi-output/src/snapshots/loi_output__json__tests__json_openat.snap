@@ -1,0 +1,5 @@
+---
+source: crates/loi-output/src/json.rs
+expression: s
+---
+{"args":[{"name":"dirfd","value":"AT_FDCWD"},{"name":"pathname","value":"/etc/hosts"},{"name":"flags","value":["O_RDONLY","O_CLOEXEC"]},{"name":"mode","value":0}],"duration":12000,"pid":1234,"ret":3,"syscall_name":"openat","syscall_nr":257}
