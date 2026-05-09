@@ -79,10 +79,11 @@ impl SyscallEvent {
 mod duration_nanos {
     use std::time::Duration;
 
-    use serde::Serializer;
+    use serde::{Serializer, ser::Error as _};
 
     pub(super) fn serialize<S: Serializer>(d: &Duration, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_u128(d.as_nanos())
+        let nanos = u64::try_from(d.as_nanos()).map_err(S::Error::custom)?;
+        s.serialize_u64(nanos)
     }
 }
 
@@ -112,7 +113,7 @@ mod tests {
     fn serializes_duration_as_nanoseconds() {
         let event = sample();
         let json = serde_json::to_value(&event).unwrap();
-        assert_eq!(json["duration"], serde_json::json!(1_500u128));
+        assert_eq!(json["duration"], serde_json::json!(1_500u64));
     }
 
     #[cfg(feature = "serde")]

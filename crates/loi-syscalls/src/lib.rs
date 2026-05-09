@@ -7,3 +7,4 @@
 pub mod decoder;
 pub mod decoders;
 pub mod registry;
+pub use registry::{Registry, name};
