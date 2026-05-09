@@ -12,4 +12,5 @@ pub use decoder::{
     decode_flags, decode_path,
 };
 pub use decoders::openat::OpenAt;
+pub use decoders::read::{MAX_INLINE_BYTES, Read};
 pub use registry::{Registry, name};
