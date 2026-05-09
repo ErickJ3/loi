@@ -1,18 +1,20 @@
 //! The ptrace-based tracer entry point.
 
+use crate::regs;
+use crate::tracee::{Phase, Tracee};
+use crate::{Error, Result, SyscallEvent};
 use nix::errno::Errno;
 use nix::fcntl::OFlag;
 use nix::sys::ptrace::{self, Options};
 use nix::sys::signal::{Signal, raise};
 use nix::sys::wait::{WaitStatus, waitpid};
 use nix::unistd::{ForkResult, Pid, execvp, fork, pipe2, read, write};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::ffi::CString;
 use std::os::fd::OwnedFd;
-
-use crate::tracee::Tracee;
-use crate::{Error, Result};
+use std::time::Instant;
 
 const PTRACE_OPTIONS: Options = Options::PTRACE_O_TRACESYSGOOD
     .union(Options::PTRACE_O_TRACEFORK)
@@ -35,6 +37,7 @@ const EXEC_FAILURE_EXIT: i32 = 127;
 pub struct Tracer {
     root_pid: Pid,
     tracees: HashMap<Pid, Tracee>,
+    follow_forks: bool,
 }
 
 impl Tracer {
@@ -93,15 +96,165 @@ impl Tracer {
         self.root_pid
     }
 
+    /// Enable or disable emission of [`SyscallEvent`]s for non-root
+    /// tracees (children of the root produced by `fork`/`vfork`/`clone`).
+    ///
+    /// When `false` (the default), the tracer still tracks child
+    /// tracees, drives them through their syscall stops, and reaps
+    /// their exits, but suppresses the [`SyscallEvent`] callback for
+    /// every pid other than [`Tracer::root_pid`]. The plumbing is
+    /// always in place so flipping this on does not require a second
+    /// pass through `Tracer::spawn`.
+    #[must_use]
+    pub fn with_follow_forks(mut self, on: bool) -> Self {
+        self.follow_forks = on;
+        self
+    }
+
     /// Run the main wait loop until every traced process has exited.
+    ///
+    /// `sink` is invoked exactly once per completed syscall (entry +
+    /// exit pair) for the root tracee. Events from forked children are
+    /// suppressed unless [`Tracer::with_follow_forks`] was set to
+    /// `true`.
+    ///
+    /// The tracer is consumed: on success every tracked tracee has
+    /// already exited, and the [`Drop`] impl is a no-op. On failure
+    /// [`Drop`] best-effort detaches any remaining tracees with
+    /// `SIGKILL`.
     ///
     /// # Errors
     ///
-    /// Returns [`crate::Error`] if `waitpid` or any `ptrace` call fails,
-    /// or if the tracee disappears unexpectedly.
-    pub fn run(&mut self) -> Result<()> {
-        todo!("not implemented")
+    /// - [`Error::Ptrace`] if any `waitpid`, `ptrace::syscall`,
+    ///   `ptrace::getregs`, or `ptrace::getevent` call fails.
+    /// - [`Error::TraceeGone`] if the kernel reports `ECHILD` while the
+    ///   root tracee was still expected to be alive.
+    pub fn run<F: FnMut(SyscallEvent)>(mut self, mut sink: F) -> Result<()> {
+        ptrace::syscall(self.root_pid, None)?;
+        while !self.tracees.is_empty() {
+            let status = match waitpid(None, None) {
+                Ok(s) => s,
+                Err(Errno::ECHILD) => {
+                    return if self.tracees.contains_key(&self.root_pid) {
+                        Err(Error::TraceeGone)
+                    } else {
+                        Ok(())
+                    };
+                }
+                Err(Errno::EINTR) => continue,
+                Err(e) => return Err(e.into()),
+            };
+            self.handle_status(status, &mut sink)?;
+        }
+        Ok(())
     }
+
+    fn handle_status<F: FnMut(SyscallEvent)>(
+        &mut self,
+        status: WaitStatus,
+        sink: &mut F,
+    ) -> Result<()> {
+        match status {
+            WaitStatus::PtraceSyscall(pid) => self.handle_syscall_stop(pid, sink),
+            WaitStatus::PtraceEvent(pid, _, evt) => self.handle_event(pid, evt),
+            WaitStatus::Stopped(pid, sig) => self.handle_signal(pid, sig),
+            WaitStatus::Exited(pid, _) | WaitStatus::Signaled(pid, _, _) => {
+                self.tracees.remove(&pid);
+                Ok(())
+            }
+            WaitStatus::Continued(_) | WaitStatus::StillAlive => Ok(()),
+        }
+    }
+
+    fn handle_syscall_stop<F: FnMut(SyscallEvent)>(
+        &mut self,
+        pid: Pid,
+        sink: &mut F,
+    ) -> Result<()> {
+        let tracee = self.tracees.entry(pid).or_insert_with(Tracee::new_child);
+        if tracee.skip_next_syscall_stop {
+            tracee.skip_next_syscall_stop = false;
+            ptrace::syscall(pid, None)?;
+            return Ok(());
+        }
+        match tracee.phase {
+            Phase::Entry => {
+                let (nr, args) = regs::read_entry(pid)?;
+                tracee.phase = Phase::Exit {
+                    nr,
+                    args,
+                    started_at: Instant::now(),
+                };
+            }
+            Phase::Exit {
+                nr,
+                args,
+                started_at,
+            } => {
+                let ret = regs::read_exit_ret(pid)?;
+                let duration = started_at.elapsed();
+                tracee.phase = Phase::Entry;
+                if pid == self.root_pid || self.follow_forks {
+                    let name = syscall_name(nr);
+                    sink(SyscallEvent::new(
+                        pid.as_raw(),
+                        nr,
+                        name,
+                        args,
+                        ret,
+                        duration,
+                    ));
+                }
+            }
+        }
+        ptrace::syscall(pid, None)?;
+        Ok(())
+    }
+
+    fn handle_event(&mut self, pid: Pid, evt: i32) -> Result<()> {
+        match evt {
+            libc::PTRACE_EVENT_FORK | libc::PTRACE_EVENT_VFORK | libc::PTRACE_EVENT_CLONE => {
+                let raw = ptrace::getevent(pid)?;
+                let child = Pid::from_raw(child_pid_from_event(raw));
+                self.tracees.entry(child).or_insert_with(Tracee::new_child);
+            }
+            libc::PTRACE_EVENT_EXEC => {
+                if let Some(tracee) = self.tracees.get_mut(&pid) {
+                    tracee.phase = Phase::Entry;
+                    tracee.skip_next_syscall_stop = true;
+                }
+            }
+            other => {
+                tracing::trace!(?pid, evt = other, "unhandled ptrace event");
+            }
+        }
+        ptrace::syscall(pid, None)?;
+        Ok(())
+    }
+
+    fn handle_signal(&mut self, pid: Pid, sig: Signal) -> Result<()> {
+        let tracee = self.tracees.entry(pid).or_insert_with(Tracee::new_child);
+        let inject = if tracee.awaiting_initial_sigstop && sig == Signal::SIGSTOP {
+            tracee.awaiting_initial_sigstop = false;
+            None
+        } else {
+            Some(sig)
+        };
+        ptrace::syscall(pid, inject)?;
+        Ok(())
+    }
+}
+
+fn syscall_name(nr: u64) -> Cow<'static, str> {
+    loi_syscalls::name(nr).map_or_else(|| Cow::Owned(format!("syscall_{nr}")), Cow::Borrowed)
+}
+
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "PTRACE_EVENT_{FORK,VFORK,CLONE} message is a pid which fits in i32"
+)]
+fn child_pid_from_event(raw: libc::c_long) -> i32 {
+    raw as i32
 }
 
 impl Drop for Tracer {
@@ -186,6 +339,7 @@ fn finish_parent(child: Pid, read_end: OwnedFd) -> Result<Tracer> {
     Ok(Tracer {
         root_pid: child,
         tracees,
+        follow_forks: false,
     })
 }
 

@@ -135,7 +135,13 @@ pub fn decode_fd(raw: i64) -> FdRepr {
     match raw {
         AT_FDCWD => FdRepr::AtFdCwd,
         n if n < 0 => FdRepr::Invalid,
-        n => FdRepr::Num(i32::try_from(n).unwrap_or(i32::MAX)),
+        n => {
+            debug_assert!(
+                n <= i64::from(i32::MAX),
+                "kernel fd should fit in i32 by ABI; got {n}"
+            );
+            FdRepr::Num(i32::try_from(n).unwrap_or(i32::MAX))
+        }
     }
 }
 

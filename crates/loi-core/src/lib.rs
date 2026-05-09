@@ -10,6 +10,9 @@ pub mod event;
 pub mod tracee;
 pub mod tracer;
 
+#[cfg(target_os = "linux")]
+mod regs;
+
 pub use error::{Error, Result};
 pub use event::SyscallEvent;
 pub use tracer::Tracer;
