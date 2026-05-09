@@ -7,4 +7,8 @@
 pub mod decoder;
 pub mod decoders;
 pub mod registry;
+pub use decoder::{
+    DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, FdRepr, PATH_MAX, decode_fd,
+    decode_flags, decode_path,
+};
 pub use registry::{Registry, name};
