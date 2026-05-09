@@ -20,12 +20,19 @@ body = """
 {% for group, commits in commits | group_by(attribute="group") %}
 ### {{ group | upper_first }}
 {% for commit in commits %}
-- {{ commit.message | split(pat="\n") | first | trim | upper_first }}{% if commit.breaking %} (**breaking**){% endif %}
+- {{ commit.message | split(pat="\n") | first | trim | upper_first }}\
+{% if commit.breaking %} (**breaking**){% endif %}\
+{% if commit.remote.pr_number %} ([#{{ commit.remote.pr_number }}](https://github.com/ErickJ3/loi/pull/{{ commit.remote.pr_number }})){% endif %}\
+{% if commit.remote.username %} by @{{ commit.remote.username }}{% elif commit.author.name %} by {{ commit.author.name }}{% endif %}
 {%- endfor %}
 {% endfor %}
 """
 trim = true
 footer = ""
+
+[remote.github]
+owner = "ErickJ3"
+repo = "loi"
 
 [git]
 conventional_commits = true
@@ -36,7 +43,13 @@ tag_pattern = "v[0-9].*"
 sort_commits = "newest"
 topo_order = false
 
+commit_preprocessors = [
+  { pattern = '(?s)^Merge pull request #\d+ from [^\n]+\n+(.+)', replace = '${1}' },
+]
+
 commit_parsers = [
+  { sha = "ad8aef74b287f67099f627431dac40de23ed8f52", group = "Added" },
+  { field = "merge_commit", pattern = "^false$", skip = true },
   { message = "^feat",      group = "Added" },
   { message = "^add",       group = "Added" },
   { message = "^change",    group = "Changed" },
