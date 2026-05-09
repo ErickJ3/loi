@@ -11,4 +11,5 @@ pub use decoder::{
     DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, FdRepr, PATH_MAX, decode_fd,
     decode_flags, decode_path,
 };
+pub use decoders::openat::OpenAt;
 pub use registry::{Registry, name};
