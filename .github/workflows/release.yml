@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to fake (act / dry-run, e.g. v0.0.0-dev)"
+        required: false
+        default: "v0.0.0-dev"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+            use_cross: false
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-latest
+            use_cross: true
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+            use_cross: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: vars
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: ${TAG}"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.95
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install mold linker
+        if: ${{ !matrix.use_cross }}
+        uses: rui314/setup-mold@v1
+
+      - name: Install cross
+        if: ${{ matrix.use_cross }}
+        run: cargo install cross --locked --version 0.2.5
+
+      - name: Cache cargo registry & target
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Build (native)
+        if: ${{ !matrix.use_cross }}
+        run: cargo build --release --bin loi --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: ${{ matrix.use_cross }}
+        run: cross build --release --bin loi --target ${{ matrix.target }}
+
+      - name: Stage tarball
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.vars.outputs.tag }}"
+          TARGET="${{ matrix.target }}"
+          NAME="loi-${TAG}-${TARGET}"
+          mkdir -p "dist/${NAME}"
+          cp "target/${TARGET}/release/loi" "dist/${NAME}/loi"
+          cp README.md LICENSE-MIT LICENSE-APACHE CHANGELOG.md "dist/${NAME}/"
+          chmod +x "dist/${NAME}/loi"
+          tar -C dist -czf "dist/${NAME}.tar.gz" "${NAME}"
+          rm -rf "dist/${NAME}"
+          ( cd dist && sha256sum "${NAME}.tar.gz" > "${NAME}.tar.gz.sha256" )
+          ls -lh dist/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: loi-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    name: release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Build combined SHA256SUMS
+        shell: bash
+        run: |
+          set -euo pipefail
+          ( cd dist && cat *.tar.gz.sha256 | sort > SHA256SUMS && rm -f *.tar.gz.sha256 )
+          cat dist/SHA256SUMS
+
+      - name: Install git-cliff
+        run: cargo install git-cliff --locked --version 2.6.1
+
+      - name: Generate release notes
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git cliff --strip header --tag "${{ github.ref_name }}" --unreleased > NOTES.md
+          cat NOTES.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          body_path: NOTES.md
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true

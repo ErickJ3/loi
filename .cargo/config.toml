@@ -3,5 +3,5 @@ xtask = "run --package xtask --"
 ci = "run --package xtask -- ci"
 lint = "run --package xtask -- lint"
 
-[build]
+[target.x86_64-unknown-linux-gnu]
 rustflags = ["-C", "link-arg=-fuse-ld=mold"]
