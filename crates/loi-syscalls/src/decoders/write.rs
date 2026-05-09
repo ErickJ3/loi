@@ -48,11 +48,11 @@ impl Decoder for Write {
     /// touched when the requested prefix length is non-zero, so calls
     /// with `count == 0` never surface a memory error.
     #[expect(
-        clippy::cast_possible_wrap,
-        reason = "fd register holds a c_int promoted to u64 by the kernel ABI"
+        clippy::cast_possible_truncation,
+        reason = "fd is `int`; only the low 32 bits of the register carry the value"
     )]
     fn decode(&self, ctx: &DecodeCtx) -> Result<DecodedCall, DecodeError> {
-        let fd_raw = ctx.args[0] as i64;
+        let fd_raw = i64::from(ctx.args[0] as i32);
         let buf_addr = ctx.args[1];
         let count = ctx.args[2];
         let total = usize::try_from(count).unwrap_or(usize::MAX);

@@ -29,6 +29,18 @@ pub struct PrettyConfig {
     pub color: bool,
 }
 
+impl PrettyConfig {
+    /// Build a [`PrettyConfig`] with `color` set as requested.
+    ///
+    /// The struct is `#[non_exhaustive]`, so callers outside this crate
+    /// cannot use the struct literal form; this constructor keeps the
+    /// builder noise out of every call site.
+    #[must_use]
+    pub fn new(color: bool) -> Self {
+        Self { color }
+    }
+}
+
 /// Write one syscall event as a single pretty line ending with `\n`.
 ///
 /// `ev` provides the pid, syscall name, return value, and duration; `decoded`

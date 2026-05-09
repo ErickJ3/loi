@@ -1,5 +1,11 @@
-use anyhow::Result;
+use std::io::{self, BufWriter, IsTerminal, StdoutLock, Write as IoWrite};
+
+use anyhow::{Context, Result};
 use clap::Parser;
+use loi_core::{SyscallEvent, Tracer};
+use loi_filter::Filter;
+use loi_output::{PrettyConfig, json, pretty};
+use loi_syscalls::{DecodeCtx, DecodedArg, DecodedCall, Registry};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -30,17 +36,13 @@ struct Cli {
     follow_forks: bool,
 }
 
-#[derive(clap::ValueEnum, Copy, Clone, Debug)]
+#[derive(clap::ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
 enum OutputFormat {
     Pretty,
     Json,
     Raw,
 }
 
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "main returns Result so future tracer code can use ?"
-)]
 fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -48,10 +50,111 @@ fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
-
     tracing::debug!(?cli, "starting loi");
 
-    println!("loi: would trace {:?}", cli.command);
+    if cli.output == OutputFormat::Raw {
+        anyhow::bail!("--output raw is not implemented in 0.1; use pretty or json");
+    }
 
-    Ok(())
+    let filter =
+        Filter::parse(cli.syscall.as_deref(), cli.fail).context("invalid --syscall pattern")?;
+
+    let registry = Registry::with_default_decoders();
+
+    let tracer = Tracer::spawn(&cli.command).context("spawn failed")?;
+    let tracer = tracer.with_follow_forks(cli.follow_forks);
+
+    let stdout = io::stdout();
+    let cfg = PrettyConfig::new(cli.output == OutputFormat::Pretty && stdout.is_terminal());
+
+    let mut state = SinkState {
+        out: BufWriter::new(stdout.lock()),
+        format: cli.output,
+        cfg,
+        registry: &registry,
+        filter: &filter,
+        first_err: None,
+        closed: false,
+    };
+
+    tracer.run(|ev| state.handle(ev)).context("trace failed")?;
+
+    state.finish().context("write failed")
+}
+
+struct SinkState<'a> {
+    out: BufWriter<StdoutLock<'a>>,
+    format: OutputFormat,
+    cfg: PrettyConfig,
+    registry: &'a Registry,
+    filter: &'a Filter,
+    first_err: Option<io::Error>,
+    closed: bool,
+}
+
+impl SinkState<'_> {
+    fn handle(&mut self, ev: &SyscallEvent) {
+        if self.closed || self.first_err.is_some() {
+            return;
+        }
+        if !self.filter.matches(ev) {
+            return;
+        }
+        let decoded = self.decode(ev);
+        let res = match self.format {
+            OutputFormat::Pretty => pretty::write_event(&mut self.out, ev, &decoded, &self.cfg),
+            OutputFormat::Json => json::write_event(&mut self.out, ev, &decoded),
+            OutputFormat::Raw => unreachable!("--output raw bails before SinkState is built"),
+        };
+        if let Err(e) = res {
+            self.record(e);
+        }
+    }
+
+    fn decode(&self, ev: &SyscallEvent) -> DecodedCall {
+        let ctx = DecodeCtx {
+            pid: ev.pid,
+            args: ev.args,
+            ret: ev.ret,
+        };
+        if let Some(d) = self.registry.decoder(ev.syscall_nr) {
+            match d.decode(&ctx) {
+                Ok(decoded) => return decoded,
+                Err(e) => tracing::trace!(nr = ev.syscall_nr, error = %e, "decode failed"),
+            }
+        }
+        fallback_decoded(ev)
+    }
+
+    fn record(&mut self, e: io::Error) {
+        if e.kind() == io::ErrorKind::BrokenPipe {
+            self.closed = true;
+        } else if self.first_err.is_none() {
+            self.first_err = Some(e);
+        }
+    }
+
+    fn finish(mut self) -> io::Result<()> {
+        if let Err(e) = self.out.flush() {
+            self.record(e);
+        }
+        match self.first_err {
+            Some(e) => Err(e),
+            None => Ok(()),
+        }
+    }
+}
+
+fn fallback_decoded(ev: &SyscallEvent) -> DecodedCall {
+    DecodedCall {
+        args: vec![
+            ("arg0", DecodedArg::Uint(ev.args[0])),
+            ("arg1", DecodedArg::Uint(ev.args[1])),
+            ("arg2", DecodedArg::Uint(ev.args[2])),
+            ("arg3", DecodedArg::Uint(ev.args[3])),
+            ("arg4", DecodedArg::Uint(ev.args[4])),
+            ("arg5", DecodedArg::Uint(ev.args[5])),
+        ],
+        ret: ev.ret,
+    }
 }

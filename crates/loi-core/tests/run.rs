@@ -29,7 +29,7 @@ fn spawn(cmd: &[&str]) -> Tracer {
 
 fn collect_events(tracer: Tracer) -> Vec<SyscallEvent> {
     let mut events = Vec::new();
-    tracer.run(|ev| events.push(ev)).expect("run");
+    tracer.run(|ev| events.push(ev.clone())).expect("run");
     events
 }
 
