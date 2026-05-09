@@ -1,5 +1,7 @@
 //! Error types produced by the core tracer.
 
+use nix::errno::Errno;
+use std::ffi::NulError;
 use thiserror::Error;
 
 /// Errors returned by the core tracer engine.
@@ -25,6 +27,20 @@ pub enum Error {
     /// A syscall number was observed that has no decoder/name registered.
     #[error("unknown syscall number: {0}")]
     UnknownSyscall(u64),
+
+    /// The command vector passed to [`crate::Tracer::spawn`] was empty.
+    #[error("invalid command: empty argv")]
+    InvalidCommand,
+
+    /// `execvp` in the freshly-forked child failed; the errno is
+    /// reported back to the parent through a `CLOEXEC` pipe.
+    #[error("exec failed: {0}")]
+    Exec(Errno),
+
+    /// A command argument contained an interior NUL byte and could not
+    /// be converted into a [`std::ffi::CString`].
+    #[error("argument contains NUL byte: {0}")]
+    Nul(#[from] NulError),
 }
 
 /// Result alias used across the core tracer crate.

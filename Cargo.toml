@@ -34,7 +34,7 @@ loi-memory = { path = "crates/loi-memory", version = "0.1.0" }
 loi-output = { path = "crates/loi-output", version = "0.1.0" }
 loi-filter = { path = "crates/loi-filter", version = "0.1.0" }
 
-nix = { version = "0.31", features = ["ptrace", "process", "signal", "uio"] }
+nix = { version = "0.31", features = ["fs", "ptrace", "process", "signal", "uio"] }
 libc = "0.2"
 syscalls = "0.8"
 clap = { version = "4.6", features = ["derive", "env"] }
