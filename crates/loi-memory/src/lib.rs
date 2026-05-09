@@ -64,6 +64,10 @@ const PAGE_SIZE: usize = 4096;
 /// - [`MemError::Ptrace`] when the PEEKDATA fallback fails.
 pub fn read_bytes(pid: i32, addr: u64, len: usize) -> Result<Vec<u8>> {
     let mut buf = vec![0u8; len];
+    // `addr` is a 64-bit tracee virtual address. On 64-bit hosts (the only
+    // ones that can ptrace 64-bit tracees) `usize == u64` so this never
+    // fails; on 32-bit hosts a 64-bit tracee address would not be
+    // representable, which we surface as EFAULT.
     let base = usize::try_from(addr).map_err(|_| MemError::Vm(Errno::EFAULT))?;
     let remote = [RemoteIoVec { base, len }];
     let mut local = [IoSliceMut::new(&mut buf)];

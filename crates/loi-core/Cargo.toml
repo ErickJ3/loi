@@ -24,6 +24,7 @@ serde = ["dep:serde"]
 [dev-dependencies]
 serde_json = { workspace = true }
 insta = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true
