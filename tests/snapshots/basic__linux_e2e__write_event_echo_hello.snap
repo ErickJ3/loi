@@ -1,0 +1,29 @@
+---
+source: tests/basic.rs
+expression: pretty
+---
+{
+  "args": [
+    {
+      "name": "fd",
+      "value": 1
+    },
+    {
+      "name": "buf",
+      "value": {
+        "inline": "hello\n",
+        "total": 6,
+        "truncated": false
+      }
+    },
+    {
+      "name": "count",
+      "value": 6
+    }
+  ],
+  "duration": "<DURATION>",
+  "pid": "<PID>",
+  "ret": 6,
+  "syscall_name": "write",
+  "syscall_nr": 1
+}
