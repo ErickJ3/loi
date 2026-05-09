@@ -18,10 +18,7 @@ fn sample_event() -> SyscallEvent {
 fn bench_serialize_event(c: &mut Criterion) {
     let event = sample_event();
     c.bench_function("event_serde::serialize_event_to_json", |b| {
-        b.iter(|| {
-            let s = serde_json::to_string(&event).unwrap();
-            std::hint::black_box(s);
-        });
+        b.iter(|| serde_json::to_string(std::hint::black_box(&event)).unwrap());
     });
 }
 

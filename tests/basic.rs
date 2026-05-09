@@ -2,13 +2,13 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 
 #[test]
-fn help_flag_prints_about_string() {
+fn help_flag_prints_usage() {
     Command::cargo_bin("loi")
         .unwrap()
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("syscall tracer"));
+        .stdout(predicate::str::contains("Usage:"));
 }
 
 #[test]

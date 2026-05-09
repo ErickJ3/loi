@@ -12,6 +12,10 @@ use crate::decoder::Decoder;
 use std::collections::HashMap;
 use syscalls::Sysno;
 
+fn sysno_from_nr(nr: u64) -> Option<Sysno> {
+    Sysno::new(usize::try_from(nr).ok()?)
+}
+
 /// Resolve a raw syscall number to its name on the host arch.
 ///
 /// Returns `None` if `nr` is outside the host arch's syscall table.
@@ -19,8 +23,7 @@ use syscalls::Sysno;
 /// no allocation occurs per lookup.
 #[must_use]
 pub fn name(nr: u64) -> Option<&'static str> {
-    let id = usize::try_from(nr).ok()?;
-    Sysno::new(id).map(|s| s.name())
+    sysno_from_nr(nr).map(|s| s.name())
 }
 
 /// Per-arch syscall registry: name lookup plus decoder dispatch.
@@ -39,20 +42,10 @@ impl Registry {
         Self::default()
     }
 
-    /// Look up a syscall name by number on the host arch.
-    ///
-    /// Equivalent to the free function [`name`].
-    #[must_use]
-    pub fn name(&self, nr: u64) -> Option<&'static str> {
-        name(nr)
-    }
-
     /// Look up the decoder for a syscall number, if registered.
     #[must_use]
     pub fn decoder(&self, nr: u64) -> Option<&'static dyn Decoder> {
-        let id = usize::try_from(nr).ok()?;
-        let sys = Sysno::new(id)?;
-        self.decoders.get(&sys).copied()
+        self.decoders.get(&sysno_from_nr(nr)?).copied()
     }
 }
 
@@ -87,10 +80,8 @@ mod tests {
     }
 
     #[test]
-    fn registry_name_matches_free_fn_and_decoder_slot_is_none() {
+    fn registry_decoder_slot_is_none_until_registered() {
         let reg = Registry::new();
-        let nr = host_write_nr();
-        assert_eq!(reg.name(nr), name(nr));
-        assert!(reg.decoder(nr).is_none());
+        assert!(reg.decoder(host_write_nr()).is_none());
     }
 }
