@@ -129,7 +129,7 @@ impl Tracer {
     ///   `ptrace::getregs`, or `ptrace::getevent` call fails.
     /// - [`Error::TraceeGone`] if the kernel reports `ECHILD` while the
     ///   root tracee was still expected to be alive.
-    pub fn run<F: FnMut(SyscallEvent)>(mut self, mut sink: F) -> Result<()> {
+    pub fn run<F: FnMut(&SyscallEvent)>(mut self, mut sink: F) -> Result<()> {
         ptrace::syscall(self.root_pid, None)?;
         while !self.tracees.is_empty() {
             let status = match waitpid(None, None) {
@@ -149,7 +149,7 @@ impl Tracer {
         Ok(())
     }
 
-    fn handle_status<F: FnMut(SyscallEvent)>(
+    fn handle_status<F: FnMut(&SyscallEvent)>(
         &mut self,
         status: WaitStatus,
         sink: &mut F,
@@ -166,7 +166,7 @@ impl Tracer {
         }
     }
 
-    fn handle_syscall_stop<F: FnMut(SyscallEvent)>(
+    fn handle_syscall_stop<F: FnMut(&SyscallEvent)>(
         &mut self,
         pid: Pid,
         sink: &mut F,
@@ -196,14 +196,8 @@ impl Tracer {
                 tracee.phase = Phase::Entry;
                 if pid == self.root_pid || self.follow_forks {
                     let name = syscall_name(nr);
-                    sink(SyscallEvent::new(
-                        pid.as_raw(),
-                        nr,
-                        name,
-                        args,
-                        ret,
-                        duration,
-                    ));
+                    let event = SyscallEvent::new(pid.as_raw(), nr, name, args, ret, duration);
+                    sink(&event);
                 }
             }
         }

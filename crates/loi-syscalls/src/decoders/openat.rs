@@ -86,15 +86,11 @@ impl Decoder for OpenAt {
     /// Returns [`DecodeError::Memory`] when [`crate::decode_path`] fails
     /// to read `pathname` from the tracee.
     #[expect(
-        clippy::cast_possible_wrap,
-        reason = "dirfd register holds an i64 from the kernel ABI"
-    )]
-    #[expect(
         clippy::cast_possible_truncation,
-        reason = "mode_t is 32 bits on Linux; the upper bits of the register are unused"
+        reason = "dirfd is `int` and mode_t is 32 bits on Linux; only the low 32 bits carry the value"
     )]
     fn decode(&self, ctx: &DecodeCtx) -> Result<DecodedCall, DecodeError> {
-        let dirfd = ctx.args[0] as i64;
+        let dirfd = i64::from(ctx.args[0] as i32);
         let pathname_addr = ctx.args[1];
         let flags = ctx.args[2];
         let mode = ctx.args[3] as u32;

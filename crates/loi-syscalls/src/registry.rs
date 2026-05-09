@@ -9,6 +9,9 @@
 //! [`crate::decoders`]; until they land, every slot is `None`.
 
 use crate::decoder::Decoder;
+use crate::decoders::openat::OpenAt;
+use crate::decoders::read::Read;
+use crate::decoders::write::Write;
 use std::collections::HashMap;
 use syscalls::Sysno;
 
@@ -42,11 +45,51 @@ impl Registry {
         Self::default()
     }
 
+    /// Build a registry pre-populated with the host-arch decoders that
+    /// ship in 0.1: `openat`, `read`, `write`.
+    ///
+    /// Numbers come from the per-arch [`Sysno`] table, so the same call
+    /// works on every architecture the `syscalls` crate covers.
+    #[must_use]
+    pub fn with_default_decoders() -> Self {
+        static OPENAT_DECODER: OpenAt = OpenAt;
+        static READ_DECODER: Read = Read;
+        static WRITE_DECODER: Write = Write;
+
+        let mut r = Self::new();
+        r.register(sysno_id_u64(Sysno::openat), &OPENAT_DECODER);
+        r.register(sysno_id_u64(Sysno::read), &READ_DECODER);
+        r.register(sysno_id_u64(Sysno::write), &WRITE_DECODER);
+        r
+    }
+
+    /// Register `decoder` for syscall number `nr`. Replaces any existing
+    /// entry for the same number.
+    ///
+    /// Numbers outside the host arch's [`Sysno`] table are silently
+    /// dropped: the registry only has rows for syscalls the kernel can
+    /// actually emit, so storing a decoder under an unknown number would
+    /// be unreachable. The `debug_assert` flags accidental misuse during
+    /// development without aborting in release builds.
+    pub fn register(&mut self, nr: u64, decoder: &'static dyn Decoder) {
+        match sysno_from_nr(nr) {
+            Some(sysno) => {
+                self.decoders.insert(sysno, decoder);
+            }
+            None => debug_assert!(false, "register called with unknown syscall nr {nr}"),
+        }
+    }
+
     /// Look up the decoder for a syscall number, if registered.
     #[must_use]
     pub fn decoder(&self, nr: u64) -> Option<&'static dyn Decoder> {
         self.decoders.get(&sysno_from_nr(nr)?).copied()
     }
+}
+
+fn sysno_id_u64(s: Sysno) -> u64 {
+    debug_assert!(s.id() >= 0, "Sysno::id is non-negative");
+    u64::try_from(s.id()).unwrap_or(u64::MAX)
 }
 
 #[cfg(test)]
@@ -83,5 +126,16 @@ mod tests {
     fn registry_decoder_slot_is_none_until_registered() {
         let reg = Registry::new();
         assert!(reg.decoder(host_write_nr()).is_none());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_openat_read_write() {
+        let reg = Registry::with_default_decoders();
+        let openat_nr = u64::try_from(syscalls::Sysno::openat.id()).expect("openat id fits in u64");
+        let read_nr = u64::try_from(syscalls::Sysno::read.id()).expect("read id fits in u64");
+        let write_nr = host_write_nr();
+        assert!(reg.decoder(openat_nr).is_some());
+        assert!(reg.decoder(read_nr).is_some());
+        assert!(reg.decoder(write_nr).is_some());
     }
 }
