@@ -584,8 +584,10 @@ dependencies = [
 name = "loi-output"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "loi-core",
  "loi-syscalls",
+ "nix",
  "owo-colors",
  "serde",
  "serde_json",
