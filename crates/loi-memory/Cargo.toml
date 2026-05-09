@@ -11,6 +11,7 @@ description = "Tracee memory readers (process_vm_readv, ptrace PEEKDATA) for loi
 [dependencies]
 nix.workspace = true
 libc.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true
