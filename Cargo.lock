@@ -594,8 +594,11 @@ dependencies = [
 name = "loi-syscalls"
 version = "0.1.0"
 dependencies = [
+ "libc",
+ "loi-memory",
  "serde",
  "syscalls",
+ "thiserror",
 ]
 
 [[package]]

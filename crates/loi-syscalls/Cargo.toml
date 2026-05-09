@@ -10,6 +10,9 @@ description = "Syscall registry and per-syscall decoders for loi"
 
 [dependencies]
 syscalls.workspace = true
+loi-memory.workspace = true
+thiserror.workspace = true
+libc.workspace = true
 serde = { workspace = true, optional = true }
 
 [features]
