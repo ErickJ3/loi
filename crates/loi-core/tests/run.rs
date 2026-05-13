@@ -11,7 +11,10 @@
 #![cfg(target_os = "linux")]
 
 use loi_core::{SyscallEvent, Tracer};
+use std::collections::HashSet;
+use std::sync::mpsc;
 use std::sync::{Mutex, MutexGuard};
+use std::thread;
 use std::time::Duration;
 
 static TRACER_LOCK: Mutex<()> = Mutex::new(());
@@ -31,6 +34,14 @@ fn collect_events(tracer: Tracer) -> Vec<SyscallEvent> {
     let mut events = Vec::new();
     tracer.run(|ev| events.push(ev.clone())).expect("run");
     events
+}
+
+fn collect_events_follow(cmd: &[&str], follow: bool) -> (i32, Vec<SyscallEvent>) {
+    let tracer = spawn(cmd).with_follow_forks(follow);
+    let root = tracer.root_pid().as_raw();
+    let mut events = Vec::new();
+    tracer.run(|ev| events.push(ev.clone())).expect("run");
+    (root, events)
 }
 
 #[test]
@@ -64,6 +75,53 @@ fn entry_exit_pairing_yields_nonzero_duration() {
         events.iter().any(|e| e.duration > Duration::ZERO),
         "expected at least one event with non-zero duration; got {events:#?}"
     );
+}
+
+#[test]
+fn follow_forks_true_emits_events_from_multiple_pids() {
+    let _guard = lock_tracer();
+    let (_root, events) =
+        collect_events_follow(&["/bin/sh", "-c", "echo a; (echo b; echo c)"], true);
+    let pids: HashSet<i32> = events.iter().map(|e| e.pid).collect();
+    assert!(
+        pids.len() >= 2,
+        "expected events from at least two distinct pids under follow_forks=true; got {pids:?}"
+    );
+}
+
+#[test]
+fn follow_forks_false_emits_events_only_from_root_pid() {
+    let _guard = lock_tracer();
+    let (root, events) =
+        collect_events_follow(&["/bin/sh", "-c", "echo a; (echo b; echo c)"], false);
+    let pids: HashSet<i32> = events.iter().map(|e| e.pid).collect();
+    assert_eq!(
+        pids,
+        HashSet::from([root]),
+        "expected events only from root pid {root} under follow_forks=false; got {pids:?}"
+    );
+}
+
+#[test]
+fn run_returns_ok_when_child_outlives_parent() {
+    let _guard = lock_tracer();
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let result = (|| -> loi_core::Result<()> {
+            let tracer = Tracer::spawn(&[
+                String::from("/bin/sh"),
+                String::from("-c"),
+                String::from("(true) &"),
+            ])?
+            .with_follow_forks(false);
+            tracer.run(|_| {})
+        })();
+        let _ = tx.send(result);
+    });
+    let result = rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("tracer.run did not finish within 5s; loop may not be draining children");
+    result.expect("tracer.run should return Ok when the child outlives the root");
 }
 
 #[test]
