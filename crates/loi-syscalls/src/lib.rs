@@ -12,6 +12,7 @@ pub use decoder::{
     decode_fd, decode_flags, decode_path, decode_prot,
 };
 pub use decoders::close::Close;
+pub use decoders::execve::{Execve, MAX_ARGV, MAX_ARGV_ENTRY_BYTES};
 pub use decoders::mmap::Mmap;
 pub use decoders::mprotect::Mprotect;
 pub use decoders::openat::OpenAt;

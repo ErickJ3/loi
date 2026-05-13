@@ -1,6 +1,7 @@
 //! Per-syscall argument decoders.
 
 pub mod close;
+pub mod execve;
 pub mod mmap;
 pub mod mprotect;
 pub mod openat;
