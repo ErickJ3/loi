@@ -17,6 +17,7 @@ use crate::decoders::mprotect::Mprotect;
 use crate::decoders::openat::OpenAt;
 use crate::decoders::read::Read;
 use crate::decoders::stat::{Fstat, Statx};
+use crate::decoders::wait4::Wait4;
 use crate::decoders::write::Write;
 use std::collections::HashMap;
 use syscalls::Sysno;
@@ -68,6 +69,7 @@ impl Registry {
         static MPROTECT_DECODER: Mprotect = Mprotect;
         static EXECVE_DECODER: Execve = Execve;
         static CLONE_DECODER: Clone = Clone;
+        static WAIT4_DECODER: Wait4 = Wait4;
 
         let mut r = Self::new();
         r.register(sysno_id_u64(Sysno::openat), &OPENAT_DECODER);
@@ -80,6 +82,7 @@ impl Registry {
         r.register(sysno_id_u64(Sysno::mprotect), &MPROTECT_DECODER);
         r.register(sysno_id_u64(Sysno::execve), &EXECVE_DECODER);
         r.register(sysno_id_u64(Sysno::clone), &CLONE_DECODER);
+        r.register(sysno_id_u64(Sysno::wait4), &WAIT4_DECODER);
         #[cfg(target_arch = "x86_64")]
         {
             use crate::decoders::stat::Stat;
@@ -199,6 +202,13 @@ mod tests {
         let reg = Registry::with_default_decoders();
         let clone_nr = u64::try_from(syscalls::Sysno::clone.id()).expect("clone id fits in u64");
         assert!(reg.decoder(clone_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_wait4() {
+        let reg = Registry::with_default_decoders();
+        let wait4_nr = u64::try_from(syscalls::Sysno::wait4.id()).expect("wait4 id fits in u64");
+        assert!(reg.decoder(wait4_nr).is_some());
     }
 
     #[test]

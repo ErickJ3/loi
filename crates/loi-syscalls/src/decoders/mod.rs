@@ -8,4 +8,5 @@ pub mod mprotect;
 pub mod openat;
 pub mod read;
 pub mod stat;
+pub mod wait4;
 pub mod write;

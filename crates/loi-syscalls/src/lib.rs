@@ -19,5 +19,6 @@ pub use decoders::mprotect::Mprotect;
 pub use decoders::openat::OpenAt;
 pub use decoders::read::{MAX_INLINE_BYTES, Read};
 pub use decoders::stat::{Fstat, Stat, Statx};
+pub use decoders::wait4::Wait4;
 pub use decoders::write::Write;
 pub use registry::{Registry, name};
