@@ -1,5 +1,6 @@
 //! Per-syscall argument decoders.
 
+pub mod clone;
 pub mod close;
 pub mod execve;
 pub mod mmap;

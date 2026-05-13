@@ -11,6 +11,7 @@ pub use decoder::{
     DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, FdRepr, PATH_MAX, PROT_TABLE,
     decode_fd, decode_flags, decode_path, decode_prot,
 };
+pub use decoders::clone::Clone;
 pub use decoders::close::Close;
 pub use decoders::execve::{Execve, MAX_ARGV, MAX_ARGV_ENTRY_BYTES};
 pub use decoders::mmap::Mmap;

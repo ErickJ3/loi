@@ -9,6 +9,7 @@
 //! [`crate::decoders`]; until they land, every slot is `None`.
 
 use crate::decoder::Decoder;
+use crate::decoders::clone::Clone;
 use crate::decoders::close::Close;
 use crate::decoders::execve::Execve;
 use crate::decoders::mmap::Mmap;
@@ -66,6 +67,7 @@ impl Registry {
         static MMAP_DECODER: Mmap = Mmap;
         static MPROTECT_DECODER: Mprotect = Mprotect;
         static EXECVE_DECODER: Execve = Execve;
+        static CLONE_DECODER: Clone = Clone;
 
         let mut r = Self::new();
         r.register(sysno_id_u64(Sysno::openat), &OPENAT_DECODER);
@@ -77,6 +79,7 @@ impl Registry {
         r.register(sysno_id_u64(Sysno::mmap), &MMAP_DECODER);
         r.register(sysno_id_u64(Sysno::mprotect), &MPROTECT_DECODER);
         r.register(sysno_id_u64(Sysno::execve), &EXECVE_DECODER);
+        r.register(sysno_id_u64(Sysno::clone), &CLONE_DECODER);
         #[cfg(target_arch = "x86_64")]
         {
             use crate::decoders::stat::Stat;
@@ -189,6 +192,13 @@ mod tests {
         let reg = Registry::with_default_decoders();
         let execve_nr = u64::try_from(syscalls::Sysno::execve.id()).expect("execve id fits in u64");
         assert!(reg.decoder(execve_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_clone() {
+        let reg = Registry::with_default_decoders();
+        let clone_nr = u64::try_from(syscalls::Sysno::clone.id()).expect("clone id fits in u64");
+        assert!(reg.decoder(clone_nr).is_some());
     }
 
     #[test]
