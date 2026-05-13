@@ -13,6 +13,7 @@ pub use decoder::{
 };
 pub use decoders::close::Close;
 pub use decoders::mmap::Mmap;
+pub use decoders::mprotect::Mprotect;
 pub use decoders::openat::OpenAt;
 pub use decoders::read::{MAX_INLINE_BYTES, Read};
 pub use decoders::stat::{Fstat, Stat, Statx};
