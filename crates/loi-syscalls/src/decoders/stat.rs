@@ -11,16 +11,8 @@
 //! - `fstat(fd, statbuf) -> int`.
 //! - `statx(dirfd, pathname, flags, mask, statbuf) -> int`.
 
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
+use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64};
 use crate::{decode_fd, decode_flags, decode_path};
-
-#[expect(
-    clippy::cast_sign_loss,
-    reason = "libc AT_* are positive c_int values; widening preserves them"
-)]
-const fn c_int_to_u64(x: libc::c_int) -> u64 {
-    x as u64
-}
 
 const fn c_uint_to_u64(x: libc::c_uint) -> u64 {
     x as u64

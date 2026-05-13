@@ -8,10 +8,11 @@ pub mod decoder;
 pub mod decoders;
 pub mod registry;
 pub use decoder::{
-    DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, FdRepr, PATH_MAX, decode_fd,
-    decode_flags, decode_path,
+    DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, FdRepr, PATH_MAX, PROT_TABLE,
+    decode_fd, decode_flags, decode_path, decode_prot,
 };
 pub use decoders::close::Close;
+pub use decoders::mmap::Mmap;
 pub use decoders::openat::OpenAt;
 pub use decoders::read::{MAX_INLINE_BYTES, Read};
 pub use decoders::stat::{Fstat, Stat, Statx};

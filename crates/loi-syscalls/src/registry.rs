@@ -10,6 +10,7 @@
 
 use crate::decoder::Decoder;
 use crate::decoders::close::Close;
+use crate::decoders::mmap::Mmap;
 use crate::decoders::openat::OpenAt;
 use crate::decoders::read::Read;
 use crate::decoders::stat::{Fstat, Statx};
@@ -60,6 +61,7 @@ impl Registry {
         static CLOSE_DECODER: Close = Close;
         static FSTAT_DECODER: Fstat = Fstat;
         static STATX_DECODER: Statx = Statx;
+        static MMAP_DECODER: Mmap = Mmap;
 
         let mut r = Self::new();
         r.register(sysno_id_u64(Sysno::openat), &OPENAT_DECODER);
@@ -68,6 +70,7 @@ impl Registry {
         r.register(sysno_id_u64(Sysno::close), &CLOSE_DECODER);
         r.register(sysno_id_u64(Sysno::fstat), &FSTAT_DECODER);
         r.register(sysno_id_u64(Sysno::statx), &STATX_DECODER);
+        r.register(sysno_id_u64(Sysno::mmap), &MMAP_DECODER);
         #[cfg(target_arch = "x86_64")]
         {
             use crate::decoders::stat::Stat;
@@ -158,6 +161,13 @@ mod tests {
         let reg = Registry::with_default_decoders();
         let close_nr = u64::try_from(syscalls::Sysno::close.id()).expect("close id fits in u64");
         assert!(reg.decoder(close_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_mmap() {
+        let reg = Registry::with_default_decoders();
+        let mmap_nr = u64::try_from(syscalls::Sysno::mmap.id()).expect("mmap id fits in u64");
+        assert!(reg.decoder(mmap_nr).is_some());
     }
 
     #[test]

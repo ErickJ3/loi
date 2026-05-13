@@ -176,6 +176,44 @@ pub fn decode_fd(raw: i64) -> FdRepr {
     }
 }
 
+/// Widen a positive `libc::c_int` constant to `u64` for flag-table entries.
+///
+/// libc's `AT_*`, `MAP_*`, `PROT_*`, `O_*`, and `CLONE_*` constants are
+/// non-negative `c_int`. The cast preserves the value and is invoked from
+/// `const` table initialisers, hence `const fn`.
+#[must_use]
+#[expect(
+    clippy::cast_sign_loss,
+    reason = "libc flag constants are positive c_int values; widening preserves them"
+)]
+pub const fn c_int_to_u64(x: libc::c_int) -> u64 {
+    x as u64
+}
+
+/// Memory-protection flag table shared by `mmap` and `mprotect` decoders.
+///
+/// `PROT_NONE` (`0`) is intentionally absent: zero-valued constants are
+/// skipped by [`decode_flags`]. Callers route through [`decode_prot`] to
+/// get the `"PROT_NONE"` rendering when `raw == 0`.
+pub const PROT_TABLE: &[(u64, &str)] = &[
+    (c_int_to_u64(libc::PROT_READ), "PROT_READ"),
+    (c_int_to_u64(libc::PROT_WRITE), "PROT_WRITE"),
+    (c_int_to_u64(libc::PROT_EXEC), "PROT_EXEC"),
+];
+
+/// Decode an `mmap`/`mprotect` `prot` bitset.
+///
+/// Returns `vec!["PROT_NONE"]` when `raw == 0`; otherwise delegates to
+/// [`decode_flags`] against [`PROT_TABLE`]. Centralises the zero-case
+/// rendering both call sites need.
+#[must_use]
+pub fn decode_prot(raw: u64) -> Vec<&'static str> {
+    if raw == 0 {
+        return vec!["PROT_NONE"];
+    }
+    decode_flags(raw, PROT_TABLE)
+}
+
 /// Decode a bitset against a static `(mask, name)` table.
 ///
 /// Each entry's `mask` is checked with `raw & mask == mask`. Entries with
