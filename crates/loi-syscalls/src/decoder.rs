@@ -75,6 +75,22 @@ pub enum DecodedArg {
     },
 }
 
+impl DecodedArg {
+    /// Borrow the inner string when this argument is a path.
+    ///
+    /// Returns `Some` for [`DecodedArg::Path`] and `None` for every other
+    /// variant. Lets filters that scan a [`DecodedCall`] for path-shaped
+    /// args avoid pattern-matching the enum directly, so adding new path
+    /// variants later only touches this method.
+    #[must_use]
+    pub fn as_path(&self) -> Option<&str> {
+        match self {
+            DecodedArg::Path(p) => Some(p.as_str()),
+            _ => None,
+        }
+    }
+}
+
 /// Output of [`Decoder::decode`]: labeled args plus the syscall return value.
 #[derive(Debug, Clone)]
 pub struct DecodedCall {

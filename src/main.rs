@@ -31,6 +31,11 @@ struct Cli {
     #[arg(long)]
     fail: bool,
 
+    /// Filter to syscalls touching a path matching this glob (comma-separated,
+    /// e.g. "/etc/*,/tmp/*"). Syscalls with no path argument are dropped.
+    #[arg(long)]
+    path: Option<String>,
+
     /// Follow forked/cloned children
     #[arg(short = 'f', long)]
     follow_forks: bool,
@@ -56,8 +61,8 @@ fn main() -> Result<()> {
         anyhow::bail!("--output raw is not implemented in 0.1; use pretty or json");
     }
 
-    let filter =
-        Filter::parse(cli.syscall.as_deref(), cli.fail).context("invalid --syscall pattern")?;
+    let filter = Filter::parse(cli.syscall.as_deref(), cli.fail, cli.path.as_deref())
+        .context("invalid filter pattern")?;
 
     let registry = Registry::with_default_decoders();
 
@@ -97,10 +102,13 @@ impl SinkState<'_> {
         if self.closed || self.first_err.is_some() {
             return;
         }
-        if !self.filter.matches(ev) {
+        if !self.filter.matches_event(ev) {
             return;
         }
         let decoded = self.decode(ev);
+        if self.filter.needs_decode() && !self.filter.matches_decoded(&decoded) {
+            return;
+        }
         let res = match self.format {
             OutputFormat::Pretty => pretty::write_event(&mut self.out, ev, &decoded, &self.cfg),
             OutputFormat::Json => json::write_event(&mut self.out, ev, &decoded),
