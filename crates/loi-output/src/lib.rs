@@ -9,4 +9,4 @@ mod format_common;
 pub mod json;
 pub mod pretty;
 
-pub use pretty::PrettyConfig;
+pub use pretty::{PrettyConfig, PrettyState};

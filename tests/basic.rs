@@ -64,7 +64,7 @@ mod linux_e2e {
             .args(["/bin/echo", "hello"])
             .assert()
             .success()
-            .stdout(predicate::str::contains("write("))
+            .stdout(predicate::str::is_match(r"write\s*\(").unwrap())
             .stdout(predicate::str::contains("\"hello"));
     }
 
