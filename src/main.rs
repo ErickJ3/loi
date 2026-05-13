@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use loi_core::{SyscallEvent, Tracer};
 use loi_filter::Filter;
-use loi_output::{PrettyConfig, json, pretty};
+use loi_output::{PrettyConfig, PrettyState, json, pretty};
 use loi_syscalls::{DecodeCtx, DecodedArg, DecodedCall, Registry};
 
 #[derive(Parser, Debug)]
@@ -76,6 +76,7 @@ fn main() -> Result<()> {
         out: BufWriter::new(stdout.lock()),
         format: cli.output,
         cfg,
+        pretty_state: PrettyState::new(),
         registry: &registry,
         filter: &filter,
         first_err: None,
@@ -91,6 +92,7 @@ struct SinkState<'a> {
     out: BufWriter<StdoutLock<'a>>,
     format: OutputFormat,
     cfg: PrettyConfig,
+    pretty_state: PrettyState,
     registry: &'a Registry,
     filter: &'a Filter,
     first_err: Option<io::Error>,
@@ -110,7 +112,13 @@ impl SinkState<'_> {
             return;
         }
         let res = match self.format {
-            OutputFormat::Pretty => pretty::write_event(&mut self.out, ev, &decoded, &self.cfg),
+            OutputFormat::Pretty => pretty::write_event(
+                &mut self.out,
+                ev,
+                &decoded,
+                &self.cfg,
+                &mut self.pretty_state,
+            ),
             OutputFormat::Json => json::write_event(&mut self.out, ev, &decoded),
             OutputFormat::Raw => unreachable!("--output raw bails before SinkState is built"),
         };

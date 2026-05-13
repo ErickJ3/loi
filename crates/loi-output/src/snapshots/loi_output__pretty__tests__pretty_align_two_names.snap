@@ -1,0 +1,7 @@
+---
+source: crates/loi-output/src/pretty.rs
+expression: out
+---
+[1234] open("/etc/hosts", O_RDONLY) = 3 <7us>
+[1234] openat(AT_FDCWD, "/etc/hosts", O_RDONLY|O_CLOEXEC, 0o0) = 3 <12us>
+[1234] open  ("/etc/hosts", O_RDONLY) = 3 <7us>
