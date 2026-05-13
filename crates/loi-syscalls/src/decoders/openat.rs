@@ -6,18 +6,10 @@
 //! `mode` is exposed unconditionally as raw bits; formatters decide
 //! whether to render it.
 
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
+use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64};
 use crate::{decode_fd, decode_path};
 
 const O_ACCMODE: u64 = 0o3;
-
-#[expect(
-    clippy::cast_sign_loss,
-    reason = "libc O_* constants are positive c_int values; widening preserves them"
-)]
-const fn c_int_to_u64(x: libc::c_int) -> u64 {
-    x as u64
-}
 
 const O_TMPFILE_MASK: u64 = c_int_to_u64(libc::O_TMPFILE);
 const O_DIRECTORY_MASK: u64 = c_int_to_u64(libc::O_DIRECTORY);

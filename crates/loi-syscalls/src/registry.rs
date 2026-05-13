@@ -9,8 +9,15 @@
 //! [`crate::decoders`]; until they land, every slot is `None`.
 
 use crate::decoder::Decoder;
+use crate::decoders::clone::Clone;
+use crate::decoders::close::Close;
+use crate::decoders::execve::Execve;
+use crate::decoders::mmap::Mmap;
+use crate::decoders::mprotect::Mprotect;
 use crate::decoders::openat::OpenAt;
 use crate::decoders::read::Read;
+use crate::decoders::stat::{Fstat, Statx};
+use crate::decoders::wait4::Wait4;
 use crate::decoders::write::Write;
 use std::collections::HashMap;
 use syscalls::Sysno;
@@ -45,8 +52,8 @@ impl Registry {
         Self::default()
     }
 
-    /// Build a registry pre-populated with the host-arch decoders that
-    /// ship in 0.1: `openat`, `read`, `write`.
+    /// Build a registry pre-populated with the host-arch decoders shipped
+    /// with the crate.
     ///
     /// Numbers come from the per-arch [`Sysno`] table, so the same call
     /// works on every architecture the `syscalls` crate covers.
@@ -55,11 +62,33 @@ impl Registry {
         static OPENAT_DECODER: OpenAt = OpenAt;
         static READ_DECODER: Read = Read;
         static WRITE_DECODER: Write = Write;
+        static CLOSE_DECODER: Close = Close;
+        static FSTAT_DECODER: Fstat = Fstat;
+        static STATX_DECODER: Statx = Statx;
+        static MMAP_DECODER: Mmap = Mmap;
+        static MPROTECT_DECODER: Mprotect = Mprotect;
+        static EXECVE_DECODER: Execve = Execve;
+        static CLONE_DECODER: Clone = Clone;
+        static WAIT4_DECODER: Wait4 = Wait4;
 
         let mut r = Self::new();
         r.register(sysno_id_u64(Sysno::openat), &OPENAT_DECODER);
         r.register(sysno_id_u64(Sysno::read), &READ_DECODER);
         r.register(sysno_id_u64(Sysno::write), &WRITE_DECODER);
+        r.register(sysno_id_u64(Sysno::close), &CLOSE_DECODER);
+        r.register(sysno_id_u64(Sysno::fstat), &FSTAT_DECODER);
+        r.register(sysno_id_u64(Sysno::statx), &STATX_DECODER);
+        r.register(sysno_id_u64(Sysno::mmap), &MMAP_DECODER);
+        r.register(sysno_id_u64(Sysno::mprotect), &MPROTECT_DECODER);
+        r.register(sysno_id_u64(Sysno::execve), &EXECVE_DECODER);
+        r.register(sysno_id_u64(Sysno::clone), &CLONE_DECODER);
+        r.register(sysno_id_u64(Sysno::wait4), &WAIT4_DECODER);
+        #[cfg(target_arch = "x86_64")]
+        {
+            use crate::decoders::stat::Stat;
+            static STAT_DECODER: Stat = Stat;
+            r.register(sysno_id_u64(Sysno::stat), &STAT_DECODER);
+        }
         r
     }
 
@@ -137,5 +166,65 @@ mod tests {
         assert!(reg.decoder(openat_nr).is_some());
         assert!(reg.decoder(read_nr).is_some());
         assert!(reg.decoder(write_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_close() {
+        let reg = Registry::with_default_decoders();
+        let close_nr = u64::try_from(syscalls::Sysno::close.id()).expect("close id fits in u64");
+        assert!(reg.decoder(close_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_mmap() {
+        let reg = Registry::with_default_decoders();
+        let mmap_nr = u64::try_from(syscalls::Sysno::mmap.id()).expect("mmap id fits in u64");
+        assert!(reg.decoder(mmap_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_mprotect() {
+        let reg = Registry::with_default_decoders();
+        let mprotect_nr =
+            u64::try_from(syscalls::Sysno::mprotect.id()).expect("mprotect id fits in u64");
+        assert!(reg.decoder(mprotect_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_execve() {
+        let reg = Registry::with_default_decoders();
+        let execve_nr = u64::try_from(syscalls::Sysno::execve.id()).expect("execve id fits in u64");
+        assert!(reg.decoder(execve_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_clone() {
+        let reg = Registry::with_default_decoders();
+        let clone_nr = u64::try_from(syscalls::Sysno::clone.id()).expect("clone id fits in u64");
+        assert!(reg.decoder(clone_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_wait4() {
+        let reg = Registry::with_default_decoders();
+        let wait4_nr = u64::try_from(syscalls::Sysno::wait4.id()).expect("wait4 id fits in u64");
+        assert!(reg.decoder(wait4_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_fstat_and_statx() {
+        let reg = Registry::with_default_decoders();
+        let fstat_nr = u64::try_from(syscalls::Sysno::fstat.id()).expect("fstat id fits in u64");
+        let statx_nr = u64::try_from(syscalls::Sysno::statx.id()).expect("statx id fits in u64");
+        assert!(reg.decoder(fstat_nr).is_some());
+        assert!(reg.decoder(statx_nr).is_some());
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    #[test]
+    fn with_default_decoders_wires_stat_on_x86_64() {
+        let reg = Registry::with_default_decoders();
+        let stat_nr = u64::try_from(syscalls::Sysno::stat.id()).expect("stat id fits in u64");
+        assert!(reg.decoder(stat_nr).is_some());
     }
 }
