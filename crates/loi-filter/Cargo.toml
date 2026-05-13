@@ -10,6 +10,7 @@ description = "Syscall filter DSL for loi"
 
 [dependencies]
 loi-core.workspace = true
+loi-syscalls.workspace = true
 globset.workspace = true
 thiserror.workspace = true
 
