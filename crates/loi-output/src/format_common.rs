@@ -32,6 +32,22 @@ pub(crate) fn render_arg_text(arg: &DecodedArg) -> String {
             let suffix = if inline.len() < *total { "..." } else { "" };
             format!("\"{}\"{}", body.escape_default(), suffix)
         }
+        DecodedArg::Ptr(0) => "NULL".to_owned(),
+        DecodedArg::Hex(n) | DecodedArg::Ptr(n) => format!("0x{n:x}"),
+        DecodedArg::Argv(entries) => {
+            let mut s = String::with_capacity(2 + entries.len() * 8);
+            s.push('[');
+            for (i, entry) in entries.iter().enumerate() {
+                if i > 0 {
+                    s.push_str(", ");
+                }
+                s.push('"');
+                s.push_str(&entry.escape_default().to_string());
+                s.push('"');
+            }
+            s.push(']');
+            s
+        }
         // `DecodedArg` is `#[non_exhaustive]`: render any future variant
         // safely until a real rendering is added.
         _ => "?".to_owned(),
@@ -59,6 +75,9 @@ pub(crate) fn arg_to_json(arg: &DecodedArg) -> Value {
                 "truncated": truncated,
             })
         }
+        DecodedArg::Ptr(0) => Value::Null,
+        DecodedArg::Hex(n) | DecodedArg::Ptr(n) => Value::String(format!("0x{n:x}")),
+        DecodedArg::Argv(entries) => json!(entries),
         // `DecodedArg` is `#[non_exhaustive]`: future variants serialize as
         // `null` until they get a dedicated mapping.
         _ => Value::Null,
@@ -197,6 +216,61 @@ mod tests {
     fn arg_to_json_flags_is_array() {
         let v = arg_to_json(&DecodedArg::Flags(vec!["O_RDONLY"]));
         assert_eq!(v, json!(["O_RDONLY"]));
+    }
+
+    #[test]
+    fn render_hex_with_0x_prefix() {
+        assert_eq!(render_arg_text(&DecodedArg::Hex(0xdead_beef)), "0xdeadbeef");
+    }
+
+    #[test]
+    fn render_ptr_zero_renders_null() {
+        assert_eq!(render_arg_text(&DecodedArg::Ptr(0)), "NULL");
+    }
+
+    #[test]
+    fn render_ptr_nonzero_renders_hex() {
+        assert_eq!(render_arg_text(&DecodedArg::Ptr(0x1000)), "0x1000");
+    }
+
+    #[test]
+    fn render_argv_quotes_each_entry() {
+        let arg = DecodedArg::Argv(vec!["ls".to_owned(), "-l".to_owned()]);
+        assert_eq!(render_arg_text(&arg), "[\"ls\", \"-l\"]");
+    }
+
+    #[test]
+    fn render_argv_escapes_special_chars() {
+        let arg = DecodedArg::Argv(vec!["a\nb".to_owned()]);
+        assert_eq!(render_arg_text(&arg), "[\"a\\nb\"]");
+    }
+
+    #[test]
+    fn render_argv_empty_is_empty_brackets() {
+        assert_eq!(render_arg_text(&DecodedArg::Argv(Vec::new())), "[]");
+    }
+
+    #[test]
+    fn arg_to_json_hex_is_string_with_prefix() {
+        let v = arg_to_json(&DecodedArg::Hex(0x42));
+        assert_eq!(v, json!("0x42"));
+    }
+
+    #[test]
+    fn arg_to_json_ptr_zero_is_null() {
+        assert_eq!(arg_to_json(&DecodedArg::Ptr(0)), Value::Null);
+    }
+
+    #[test]
+    fn arg_to_json_ptr_nonzero_is_string() {
+        let v = arg_to_json(&DecodedArg::Ptr(0x1000));
+        assert_eq!(v, json!("0x1000"));
+    }
+
+    #[test]
+    fn arg_to_json_argv_is_string_array() {
+        let v = arg_to_json(&DecodedArg::Argv(vec!["a".to_owned(), "b".to_owned()]));
+        assert_eq!(v, json!(["a", "b"]));
     }
 
     #[test]

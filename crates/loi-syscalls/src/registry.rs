@@ -9,6 +9,7 @@
 //! [`crate::decoders`]; until they land, every slot is `None`.
 
 use crate::decoder::Decoder;
+use crate::decoders::close::Close;
 use crate::decoders::openat::OpenAt;
 use crate::decoders::read::Read;
 use crate::decoders::write::Write;
@@ -45,8 +46,8 @@ impl Registry {
         Self::default()
     }
 
-    /// Build a registry pre-populated with the host-arch decoders that
-    /// ship in 0.1: `openat`, `read`, `write`.
+    /// Build a registry pre-populated with the host-arch decoders shipped
+    /// with the crate.
     ///
     /// Numbers come from the per-arch [`Sysno`] table, so the same call
     /// works on every architecture the `syscalls` crate covers.
@@ -55,11 +56,13 @@ impl Registry {
         static OPENAT_DECODER: OpenAt = OpenAt;
         static READ_DECODER: Read = Read;
         static WRITE_DECODER: Write = Write;
+        static CLOSE_DECODER: Close = Close;
 
         let mut r = Self::new();
         r.register(sysno_id_u64(Sysno::openat), &OPENAT_DECODER);
         r.register(sysno_id_u64(Sysno::read), &READ_DECODER);
         r.register(sysno_id_u64(Sysno::write), &WRITE_DECODER);
+        r.register(sysno_id_u64(Sysno::close), &CLOSE_DECODER);
         r
     }
 
@@ -137,5 +140,12 @@ mod tests {
         assert!(reg.decoder(openat_nr).is_some());
         assert!(reg.decoder(read_nr).is_some());
         assert!(reg.decoder(write_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_close() {
+        let reg = Registry::with_default_decoders();
+        let close_nr = u64::try_from(syscalls::Sysno::close.id()).expect("close id fits in u64");
+        assert!(reg.decoder(close_nr).is_some());
     }
 }

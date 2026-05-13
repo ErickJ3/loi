@@ -11,6 +11,7 @@ pub use decoder::{
     DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, FdRepr, PATH_MAX, decode_fd,
     decode_flags, decode_path,
 };
+pub use decoders::close::Close;
 pub use decoders::openat::OpenAt;
 pub use decoders::read::{MAX_INLINE_BYTES, Read};
 pub use decoders::write::Write;

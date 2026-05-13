@@ -73,6 +73,21 @@ pub enum DecodedArg {
         /// Original length the syscall referenced.
         total: usize,
     },
+    /// Raw unsigned value rendered as hex (`0x{:x}`). Used for register
+    /// values that are always pointer-or-offset shaped, like the `addr`
+    /// argument of `mmap`.
+    Hex(u64),
+    /// Tracee virtual address. Rendered as `NULL` when zero, otherwise as
+    /// hex. Used for out-pointer arguments such as `statbuf`, `envp`,
+    /// `rusage`, and the `clone` tid/tls slots.
+    Ptr(u64),
+    /// NUL-terminated argv-style array, lossy-UTF-8 decoded.
+    ///
+    /// Decoder writers append two sentinel entries when needed:
+    /// `"..."` when the per-call entry cap is hit, and `"<unreadable>"`
+    /// when a mid-walk memory read failed after at least one entry was
+    /// recorded. Formatters render the sentinels verbatim.
+    Argv(Vec<String>),
 }
 
 impl DecodedArg {
