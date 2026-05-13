@@ -12,6 +12,7 @@ use crate::decoder::Decoder;
 use crate::decoders::close::Close;
 use crate::decoders::openat::OpenAt;
 use crate::decoders::read::Read;
+use crate::decoders::stat::{Fstat, Statx};
 use crate::decoders::write::Write;
 use std::collections::HashMap;
 use syscalls::Sysno;
@@ -57,12 +58,22 @@ impl Registry {
         static READ_DECODER: Read = Read;
         static WRITE_DECODER: Write = Write;
         static CLOSE_DECODER: Close = Close;
+        static FSTAT_DECODER: Fstat = Fstat;
+        static STATX_DECODER: Statx = Statx;
 
         let mut r = Self::new();
         r.register(sysno_id_u64(Sysno::openat), &OPENAT_DECODER);
         r.register(sysno_id_u64(Sysno::read), &READ_DECODER);
         r.register(sysno_id_u64(Sysno::write), &WRITE_DECODER);
         r.register(sysno_id_u64(Sysno::close), &CLOSE_DECODER);
+        r.register(sysno_id_u64(Sysno::fstat), &FSTAT_DECODER);
+        r.register(sysno_id_u64(Sysno::statx), &STATX_DECODER);
+        #[cfg(target_arch = "x86_64")]
+        {
+            use crate::decoders::stat::Stat;
+            static STAT_DECODER: Stat = Stat;
+            r.register(sysno_id_u64(Sysno::stat), &STAT_DECODER);
+        }
         r
     }
 
@@ -147,5 +158,22 @@ mod tests {
         let reg = Registry::with_default_decoders();
         let close_nr = u64::try_from(syscalls::Sysno::close.id()).expect("close id fits in u64");
         assert!(reg.decoder(close_nr).is_some());
+    }
+
+    #[test]
+    fn with_default_decoders_wires_fstat_and_statx() {
+        let reg = Registry::with_default_decoders();
+        let fstat_nr = u64::try_from(syscalls::Sysno::fstat.id()).expect("fstat id fits in u64");
+        let statx_nr = u64::try_from(syscalls::Sysno::statx.id()).expect("statx id fits in u64");
+        assert!(reg.decoder(fstat_nr).is_some());
+        assert!(reg.decoder(statx_nr).is_some());
+    }
+
+    #[cfg(target_arch = "x86_64")]
+    #[test]
+    fn with_default_decoders_wires_stat_on_x86_64() {
+        let reg = Registry::with_default_decoders();
+        let stat_nr = u64::try_from(syscalls::Sysno::stat.id()).expect("stat id fits in u64");
+        assert!(reg.decoder(stat_nr).is_some());
     }
 }
