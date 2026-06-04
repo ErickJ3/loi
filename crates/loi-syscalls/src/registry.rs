@@ -8,7 +8,7 @@
 //! Decoder dispatch is populated by per-syscall decoders in
 //! [`crate::decoders`]; until they land, every slot is `None`.
 
-use crate::decoder::Decoder;
+use crate::decoder::{Category, Decoder};
 use crate::decoders::clone::Clone;
 use crate::decoders::close::Close;
 use crate::decoders::execve::Execve;
@@ -113,6 +113,16 @@ impl Registry {
     #[must_use]
     pub fn decoder(&self, nr: u64) -> Option<&'static dyn Decoder> {
         self.decoders.get(&sysno_from_nr(nr)?).copied()
+    }
+
+    /// Look up the [`Category`] declared by the decoder for `nr`.
+    ///
+    /// Returns `None` when no decoder is registered (the formatter falls
+    /// back to its default styling). Decoders with no explicit override
+    /// return [`Category::Other`] from the trait default.
+    #[must_use]
+    pub fn category(&self, nr: u64) -> Option<Category> {
+        self.decoder(nr).map(Decoder::category)
     }
 }
 

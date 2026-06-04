@@ -9,7 +9,7 @@
 //! call's outcome.
 
 use crate::decode_fd;
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
+use crate::decoder::{Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
 
 /// Cap on the buffer prefix captured for pretty/JSON output.
 ///
@@ -48,6 +48,10 @@ pub const MAX_INLINE_BYTES: usize = 64;
 pub struct Read;
 
 impl Decoder for Read {
+    fn category(&self) -> Category {
+        Category::File
+    }
+
     /// Decode a `read` call from its syscall registers.
     ///
     /// # Errors

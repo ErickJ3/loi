@@ -13,7 +13,7 @@
 //! inspected.
 
 use crate::decode_fd;
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
+use crate::decoder::{Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
 use crate::decoders::read::MAX_INLINE_BYTES;
 
 /// Decoder for the Linux `write` syscall.
@@ -39,6 +39,10 @@ use crate::decoders::read::MAX_INLINE_BYTES;
 pub struct Write;
 
 impl Decoder for Write {
+    fn category(&self) -> Category {
+        Category::File
+    }
+
     /// Decode a `write` call from its syscall registers.
     ///
     /// # Errors

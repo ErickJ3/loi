@@ -11,7 +11,9 @@
 //! - `fstat(fd, statbuf) -> int`.
 //! - `statx(dirfd, pathname, flags, mask, statbuf) -> int`.
 
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64};
+use crate::decoder::{
+    Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64,
+};
 use crate::{decode_fd, decode_flags, decode_path};
 
 const fn c_uint_to_u64(x: libc::c_uint) -> u64 {
@@ -61,6 +63,10 @@ const STATX_MASK_TABLE: &[(u64, &str)] = &[
 pub struct Stat;
 
 impl Decoder for Stat {
+    fn category(&self) -> Category {
+        Category::FileMeta
+    }
+
     /// Decode a `stat` call from its syscall registers.
     ///
     /// # Errors
@@ -87,6 +93,10 @@ impl Decoder for Stat {
 pub struct Fstat;
 
 impl Decoder for Fstat {
+    fn category(&self) -> Category {
+        Category::FileMeta
+    }
+
     /// Decode an `fstat` call from its syscall registers.
     ///
     /// # Errors
@@ -117,6 +127,10 @@ impl Decoder for Fstat {
 pub struct Statx;
 
 impl Decoder for Statx {
+    fn category(&self) -> Category {
+        Category::FileMeta
+    }
+
     /// Decode a `statx` call from its syscall registers.
     ///
     /// # Errors

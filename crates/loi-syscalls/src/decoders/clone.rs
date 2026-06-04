@@ -12,7 +12,9 @@
 //! values.
 
 use crate::decode_flags;
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64};
+use crate::decoder::{
+    Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64,
+};
 
 const CLONE_TABLE: &[(u64, &str)] = &[
     (c_int_to_u64(libc::CLONE_VM), "CLONE_VM"),
@@ -61,6 +63,10 @@ const PTR_LABELS: [&str; 3] = ["parent_tid", "child_tid", "tls"];
 pub struct Clone;
 
 impl Decoder for Clone {
+    fn category(&self) -> Category {
+        Category::Process
+    }
+
     /// Decode a `clone` call from its syscall registers.
     ///
     /// # Errors

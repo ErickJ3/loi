@@ -6,7 +6,9 @@
 //! `mode` is exposed unconditionally as raw bits; formatters decide
 //! whether to render it.
 
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64};
+use crate::decoder::{
+    Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64,
+};
 use crate::{decode_fd, decode_path};
 
 const O_ACCMODE: u64 = 0o3;
@@ -71,6 +73,10 @@ fn decode_open_flags(flags: u64) -> Vec<&'static str> {
 pub struct OpenAt;
 
 impl Decoder for OpenAt {
+    fn category(&self) -> Category {
+        Category::File
+    }
+
     /// Decode an `openat` call from its syscall registers.
     ///
     /// # Errors

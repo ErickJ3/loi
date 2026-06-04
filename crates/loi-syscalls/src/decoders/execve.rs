@@ -22,7 +22,7 @@
 //! bounded.
 
 use crate::decode_path;
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
+use crate::decoder::{Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
 
 /// Maximum number of argv entries decoded per `execve`.
 pub const MAX_ARGV: usize = 64;
@@ -59,6 +59,10 @@ fn read_ptr_slot(pid: i32, addr: u64) -> Result<u64, DecodeError> {
 pub struct Execve;
 
 impl Decoder for Execve {
+    fn category(&self) -> Category {
+        Category::Process
+    }
+
     /// Decode an `execve` call from its syscall registers.
     ///
     /// # Errors

@@ -115,6 +115,31 @@ pub struct DecodedCall {
     pub ret: i64,
 }
 
+/// Coarse semantic family for a syscall.
+///
+/// Used by the pretty formatter to colour the syscall-name token without
+/// the formatter knowing about individual syscalls. Decoders override
+/// [`Decoder::category`] to opt into a family; [`Category::Other`] is the
+/// default and renders without a category-specific colour.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum Category {
+    /// Filesystem I/O on an open fd or a path: `openat`, `read`, `write`,
+    /// `close`.
+    File,
+    /// Filesystem metadata: `stat`, `fstat`, `statx`, future `newfstatat` /
+    /// `access`.
+    FileMeta,
+    /// Memory mapping / protection: `mmap`, `mprotect`, future `brk` /
+    /// `munmap`.
+    Memory,
+    /// Process / thread lifecycle: `execve`, `clone`, `wait4`, future
+    /// `fork` / `exit_group`.
+    Process,
+    /// No specific family.
+    Other,
+}
+
 /// Per-syscall decoder. Implementations live in [`crate::decoders`].
 pub trait Decoder: Send + Sync {
     /// Decode one syscall invocation from its [`DecodeCtx`] into a
@@ -126,6 +151,13 @@ pub trait Decoder: Send + Sync {
     /// must not panic on bad tracee state; surface every failure as a
     /// typed error so the tracer can keep running.
     fn decode(&self, ctx: &DecodeCtx) -> Result<DecodedCall, DecodeError>;
+
+    /// Coarse [`Category`] this syscall belongs to. Defaults to
+    /// [`Category::Other`] so decoders can opt in only when a category
+    /// genuinely fits.
+    fn category(&self) -> Category {
+        Category::Other
+    }
 }
 
 /// Read a NUL-terminated path from tracee memory, lossy-UTF-8 decoded.
