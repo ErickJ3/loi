@@ -4,10 +4,13 @@
 //! The helpers convert raw fields from a [`loi_core::SyscallEvent`] +
 //! [`loi_syscalls::DecodedCall`] pair into stable text / JSON shapes.
 
-use loi_syscalls::{DecodedArg, FdRepr};
+use loi_syscalls::{DecodedArg, DecodedCall, FdRepr};
 use nix::errno::Errno;
 use serde_json::{Value, json};
 use std::time::Duration;
+
+/// `-ENOENT` as a raw `ret` value: the kernel returns `-errno` on failure.
+pub(crate) const RET_ENOENT: i64 = -2;
 
 /// Render a single decoded argument as the text the pretty formatter places
 /// inside the parenthesised argument list.
@@ -98,6 +101,41 @@ pub(crate) fn errno_of_ret(ret: i64) -> Option<(String, &'static str)> {
         return None;
     }
     Some((format!("{errno:?}"), errno.desc()))
+}
+
+/// Whether `name` is a path-lookup-style syscall.
+///
+/// The set covers the calls the dynamic linker rains down when probing
+/// for a library: `openat` (most opens), the older `open`, plus the
+/// metadata family (`stat` / `newfstatat` / `statx` / `access` /
+/// `faccessat`). Used by the pretty formatter to dim ENOENT bursts and
+/// to detect same-basename runs for tree-prefix grouping.
+pub(crate) fn is_path_lookup(name: &str) -> bool {
+    matches!(
+        name,
+        "openat" | "open" | "newfstatat" | "access" | "faccessat" | "stat" | "statx"
+    )
+}
+
+/// Final path component of the `pathname` argument when `name` is a
+/// path-lookup syscall.
+///
+/// Returns `None` when `name` is not a lookup, when the decoded call
+/// has no `pathname` arg, or when that arg is not a [`DecodedArg::Path`].
+/// Centralised here so the dim-detection and burst-grouping logic in
+/// `pretty.rs` share a single, testable heuristic.
+pub(crate) fn lookup_basename<'a>(name: &str, decoded: &'a DecodedCall) -> Option<&'a str> {
+    if !is_path_lookup(name) {
+        return None;
+    }
+    for (label, arg) in &decoded.args {
+        if *label == "pathname"
+            && let DecodedArg::Path(p) = arg
+        {
+            return Some(p.rsplit('/').next().unwrap_or(p.as_str()));
+        }
+    }
+    None
 }
 
 /// Render a [`Duration`] picking the largest unit that keeps the magnitude

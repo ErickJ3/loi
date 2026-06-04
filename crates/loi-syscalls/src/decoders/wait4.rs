@@ -8,7 +8,9 @@
 //! deferred to a follow-up feature.
 
 use crate::decode_flags;
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64};
+use crate::decoder::{
+    Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64,
+};
 
 const STATUS_WORD_BYTES: usize = std::mem::size_of::<u32>();
 
@@ -32,6 +34,10 @@ fn read_status_word(pid: i32, addr: u64) -> Option<u32> {
 pub struct Wait4;
 
 impl Decoder for Wait4 {
+    fn category(&self) -> Category {
+        Category::Process
+    }
+
     /// Decode a `wait4` call from its syscall registers.
     ///
     /// # Errors

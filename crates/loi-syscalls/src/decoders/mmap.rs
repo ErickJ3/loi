@@ -4,7 +4,9 @@
 //! `PROT_NONE` rendering stays consistent with `mprotect`. `flags` is
 //! decoded against a local `MAP_*` table.
 
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64};
+use crate::decoder::{
+    Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder, c_int_to_u64,
+};
 use crate::{decode_fd, decode_flags, decode_prot};
 
 const MAP_TABLE: &[(u64, &str)] = &[
@@ -27,6 +29,10 @@ const MAP_TABLE: &[(u64, &str)] = &[
 pub struct Mmap;
 
 impl Decoder for Mmap {
+    fn category(&self) -> Category {
+        Category::Memory
+    }
+
     /// Decode an `mmap` call from its syscall registers.
     ///
     /// # Errors

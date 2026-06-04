@@ -5,7 +5,7 @@ use clap::Parser;
 use loi_core::{SyscallEvent, Tracer};
 use loi_filter::Filter;
 use loi_output::{PrettyConfig, PrettyState, json, pretty};
-use loi_syscalls::{DecodeCtx, DecodedArg, DecodedCall, Registry};
+use loi_syscalls::{Category, DecodeCtx, DecodedArg, DecodedCall, Registry};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -14,6 +14,7 @@ use loi_syscalls::{DecodeCtx, DecodedArg, DecodedCall, Registry};
     about = "A modern, structured syscall tracer for Linux",
     long_about = None,
 )]
+#[allow(clippy::struct_excessive_bools)]
 struct Cli {
     /// Command to trace
     #[arg(required = true, num_args = 1.., trailing_var_arg = true)]
@@ -39,6 +40,22 @@ struct Cli {
     /// Follow forked/cloned children
     #[arg(short = 'f', long)]
     follow_forks: bool,
+
+    /// Disable color-by-category for the syscall-name column (everything
+    /// stays bold cyan). Has no effect when stdout is not a terminal.
+    #[arg(long)]
+    no_category_colors: bool,
+
+    /// Disable dimming of ENOENT-on-lookup events (e.g. dynamic-linker
+    /// library probes). Has no effect when stdout is not a terminal.
+    #[arg(long)]
+    no_dim_lookups: bool,
+
+    /// Disable grouping of consecutive same-basename lookups behind a
+    /// single pid bracket (followups otherwise render with a `↳` tree
+    /// prefix).
+    #[arg(long)]
+    no_group_lookups: bool,
 }
 
 #[derive(clap::ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
@@ -70,7 +87,10 @@ fn main() -> Result<()> {
     let tracer = tracer.with_follow_forks(cli.follow_forks);
 
     let stdout = io::stdout();
-    let cfg = PrettyConfig::new(cli.output == OutputFormat::Pretty && stdout.is_terminal());
+    let cfg = PrettyConfig::new(cli.output == OutputFormat::Pretty && stdout.is_terminal())
+        .category_colors(!cli.no_category_colors)
+        .dim_lookups(!cli.no_dim_lookups)
+        .group_lookups(!cli.no_group_lookups);
 
     let mut state = SinkState {
         out: BufWriter::new(stdout.lock()),
@@ -107,7 +127,7 @@ impl SinkState<'_> {
         if !self.filter.matches_event(ev) {
             return;
         }
-        let decoded = self.decode(ev);
+        let (decoded, category) = self.decode(ev);
         if self.filter.needs_decode() && !self.filter.matches_decoded(&decoded) {
             return;
         }
@@ -116,6 +136,7 @@ impl SinkState<'_> {
                 &mut self.out,
                 ev,
                 &decoded,
+                category,
                 &self.cfg,
                 &mut self.pretty_state,
             ),
@@ -127,7 +148,7 @@ impl SinkState<'_> {
         }
     }
 
-    fn decode(&self, ev: &SyscallEvent) -> DecodedCall {
+    fn decode(&self, ev: &SyscallEvent) -> (DecodedCall, Option<Category>) {
         let ctx = DecodeCtx {
             pid: ev.pid,
             args: ev.args,
@@ -135,11 +156,11 @@ impl SinkState<'_> {
         };
         if let Some(d) = self.registry.decoder(ev.syscall_nr) {
             match d.decode(&ctx) {
-                Ok(decoded) => return decoded,
+                Ok(decoded) => return (decoded, Some(d.category())),
                 Err(e) => tracing::trace!(nr = ev.syscall_nr, error = %e, "decode failed"),
             }
         }
-        fallback_decoded(ev)
+        (fallback_decoded(ev), None)
     }
 
     fn record(&mut self, e: io::Error) {

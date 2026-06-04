@@ -4,7 +4,7 @@
 //! so the `PROT_NONE` rendering stays consistent with `mmap`.
 
 use crate::decode_prot;
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
+use crate::decoder::{Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
 
 /// Decoder for the Linux `mprotect` syscall.
 ///
@@ -14,6 +14,10 @@ use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
 pub struct Mprotect;
 
 impl Decoder for Mprotect {
+    fn category(&self) -> Category {
+        Category::Memory
+    }
+
     /// Decode an `mprotect` call from its syscall registers.
     ///
     /// # Errors

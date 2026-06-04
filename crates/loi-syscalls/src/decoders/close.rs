@@ -5,7 +5,7 @@
 //! only forwards the raw return value.
 
 use crate::decode_fd;
-use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
+use crate::decoder::{Category, DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
 
 /// Decoder for the Linux `close` syscall.
 ///
@@ -15,6 +15,10 @@ use crate::decoder::{DecodeCtx, DecodeError, DecodedArg, DecodedCall, Decoder};
 pub struct Close;
 
 impl Decoder for Close {
+    fn category(&self) -> Category {
+        Category::File
+    }
+
     /// Decode a `close` call from its syscall registers.
     ///
     /// # Errors
